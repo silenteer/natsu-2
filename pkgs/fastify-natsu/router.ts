@@ -5,10 +5,11 @@ import { NatsService } from "@silenteer/natsu-type";
 import { A, O } from "ts-toolbelt";
 
 import { createRoute, Route } from "./route";
-import { natsPlugin } from "./plugins/nats-plugin"
-import fastifyClient from "./plugins/client";
+import { nats } from "./plugins/nats"
+import bridge from "./plugins/bridge"
 import { provider, Provider } from "./plugins/provider";
 import fastifyTimeout, { type TimeoutConfig } from './plugins/timeout'
+import fp from "fastify-plugin";
 
 type checkImplements<ServiceContext, RouteContext> =
 	ServiceContext extends Record<string, unknown>
@@ -20,7 +21,6 @@ type checkImplements<ServiceContext, RouteContext> =
 type LegacyHandlerDef<path extends string, req, res, context extends Record<string, unknown>> = O.Optional<
 	NatsHandler<NatsService<path, req, res>, context>, "authorize" | "validate"
 >
-
 
 type FastifyOpts = {
 	fastify: FastifyInstance
@@ -54,33 +54,48 @@ declare module 'fastify' {
 	}
 }
 
+type RouterInjector = {
+	routerFastify: FastifyInstance
+}
+
+const router = fp(function (fastify: FastifyInstance, opts: RouterInjector, done: Function) {
+	// Follow fastify context structure, the route must be registered to this fastify instance to inherit those plugins
+	// including all of those decorateRequest(s)
+	opts.routerFastify = fastify
+	done()
+}, {
+	name: 'fastify-router'
+})
+
 export class Router<
 	routes extends Route<any, any, any, any> = never,
 	context extends Record<string, any> = {}
 > {
 	fastify: FastifyInstance
 	private opts: RouterOpts | undefined
+	private root: FastifyInstance
 
 	register: FastifyRegister<typeof this>
 
 	constructor(routerOpts?: RouterOpts) {
 		this.opts = routerOpts
-		this.fastify = routerOpts?.fastify
+		this.root = routerOpts?.fastify
 			? routerOpts.fastify
 			: fastify(routerOpts?.serverOpts);
+
+		const routerFastifyRef = { routerFastify: this.root }
+		this.root.register(router, routerFastifyRef)
+		// Set the fastify to the child context, as such, all of routes are going to be under this context
+		this.fastify = routerFastifyRef.routerFastify;
 
 		this.register = (plugin, opts) => {
 			this.fastify.register(plugin, opts)
 			return this;
 		}
 		this.register(fastifyTimeout, this.opts?.handler)
-
-		this.register(fastifyClient);
+		this.register(bridge);
 		this.register(provider);
-
-		if (this.opts?.portEnabled) {
-			this.register(natsPlugin)
-		}
+		this.register(nats)
 	}
 
 	use<
@@ -128,33 +143,33 @@ export class Router<
 	async call<
 		path extends string = this['Routes']['subject'],
 		input extends any = Extract<this['Routes'], { subject: path }>['request'],
-		output extends any = NatsHandleResult<Extract<this['Routes'], { subject: path }>['response']>
+		result extends any = NatsHandleResult<Extract<this['Routes'], { subject: path }>>
 	>(
 		subject: path,
-		input: input
+		input?: input
 			| Exclude<{
 				headers?: Record<string, string>,
 				body: input
 			}, input>
-	): Promise<output> {
-		if (!this.fastify.server.listening) {
-			throw new Error("Server needs to be started firstly")
-		}
-
-		return this.fastify.call(subject, input)
+	): Promise<result> {
+		await this.fastify.ready()
+		this.fastify.ready
+		return this.fastify.bridge(subject, {
+			data: input
+		})
 	}
 
 	async start() {
-		this.fastify.log.info("starting");
-		await this.fastify.listen({ ...this?.opts?.listenOpts })
+		this.root.log.info("starting");
+		await this.root.listen({ ...this?.opts?.listenOpts })
 			.then(started => {
-				this.fastify.log.info("server started successfully");
+				this.root.log.info("server started successfully");
 			})
 			.catch(error => {
-				this.fastify.log.error(error, 'caught startup exception, exitting')
+				this.root.log.error(error, 'caught startup exception, exitting')
 				process.exit(1)
 			})
-
+		
 		return this
 	}
 

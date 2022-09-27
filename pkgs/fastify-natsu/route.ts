@@ -28,7 +28,7 @@ function validateZodInput(def: AnyRouteDef): preHandlerAsyncHookHandler {
       const parseResult = def.input.safeParse(req.body)
       if (!parseResult.success) {
         log.error(parseResult, 'Invalid request found')
-        !rep.sent && rep
+        rep
           .code(400)
           .send({ errorMsg: 'Invalid input', ...parseResult })
         return rep
@@ -116,18 +116,22 @@ export function createRoute<
 
       // fastify will catch the 500
       const result = await def.handle({
-        headers, body: data as any
+        headers: headers, 
+        body: data as any
       }, req._provider as any)
 
-      !rep.sent && rep
-        .headers({...result.headers})
-        .send(result.body)
+      if (result.code === 'OK') {
+        rep.code(200)
+      } else if (result.code) {
+        rep.code(result.code)
+      }
+      
+      return result
     })
   }, {
     name: `route-${def.subject}`,
     dependencies: [
-      'fastify-provider',
-      // 'fastify-timeout'
+      'fastify-provider'
     ]
   })
 }

@@ -1,5 +1,5 @@
 **/node_modules
-*/coverage
+**/coverage
 yarn-error.log
 .yarn
 !.yarn/releases

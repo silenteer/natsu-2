@@ -34,5 +34,5 @@ type Routes = typeof server.Routes
 
 server.start()
   .then(() => {
-    server.call('echo', {})
+    // server.call('echo', {})
   })

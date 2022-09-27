@@ -5,5 +5,7 @@
 	"editor.insertSpaces": false,
 	"workbench.iconTheme": "city-lights-icons-vsc",
 	"workbench.tree.indent": 8,
-	"explorer.compactFolders": false
+	"explorer.compactFolders": false,
+	"vitest.commandLine": "npx vitest",
+	"vitest.enable": true
 }

@@ -1,6 +1,6 @@
 import { createRoute } from './route'
-import { Router } from './builder'
-import { natsPlugin } from './plugins/nats-plugin'
+import { Router } from './router'
+import { natsPlugin } from './plugins/nats'
 import { createProvider } from './plugins/provider'
 
 type inferContext<T> = T extends Router<infer Route, infer Context> ? Context : any;
