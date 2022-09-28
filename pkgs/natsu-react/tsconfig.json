@@ -1,0 +1,12 @@
+{
+  "extends": "tsconfigs/react-library.json",
+  "include": ["**/*.tsx", "**/*.ts"],
+  "exclude": ["node_modules", "dist", "release"],
+  "compilerOptions": {
+    "lib": ["ES2015", "DOM", "WebWorker"],
+    "module": "ESNext",
+    "target": "ES6",
+    "jsx": "react-jsx",
+    "outDir": "dist"
+  }
+}

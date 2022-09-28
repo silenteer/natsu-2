@@ -1,0 +1,26 @@
+{
+  "name": "@silenteer/natsu-port-2",
+  "version": "0.0.19",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "files": [
+    "dist/**"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.lib.json",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@silenteer/natsu-type": "^0.0.12",
+    "isomorphic-ws": "^5.0.0",
+    "reconnecting-websocket": "^4.4.0"
+  },
+  "devDependencies": {
+    "@fastify/websocket": "^7.0.1",
+    "@types/node": "16.9.1",
+    "@types/websocket": "^1.0.5"
+  }
+}

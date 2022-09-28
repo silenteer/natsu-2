@@ -1,0 +1,39 @@
+{
+  "name": "@silenteer/natsu-port-server-2",
+  "version": "0.0.32",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "files": [
+    "dist/**",
+    "cli.js"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "test": "echo \"no tests\""
+  },
+  "bin": "./cli.js",
+  "dependencies": {
+    "@fastify/cors": "^8.1.0",
+    "@fastify/websocket": "^7.0.1",
+    "arg": "5.0.1",
+    "cli-table3": "0.6.0",
+    "colors": "^1.4.0",
+    "dotenv": "^16.0.0",
+    "esbuild-register": "^3.3.3",
+    "fastify": "^4.6.0",
+    "fastify-plugin": "^4.2.1",
+    "nats": "2.6.1",
+    "uri-js": "^4.4.1",
+    "ws": "^8.9.0",
+    "yup": "0.32.9"
+  },
+  "devDependencies": {
+    "pino-pretty": "^9.1.0",
+    "tslib": "2.3.1",
+    "tsx": "^3.9.0",
+    "typescript": "4.4.3"
+  }
+}
