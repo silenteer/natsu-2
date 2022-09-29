@@ -1,38 +1,24 @@
 import * as yup from 'yup';
 
 import dotenv from 'dotenv';
-dotenv.config();
-
-type Config = {
-  logLevels: Array<'all' | 'none' | 'error' | 'info' | 'log'>;
-  natsURI: string;
-  natsAuthSubjects: string[];
-  natsNonAuthorizedSubjects: string[];
-  natsNamespaceSubjects: string[];
-  getNamespaceSubject: string;
-  natsUser: string;
-  natsPass: string;
-  httpPath: string;
-  wsPath: string;
-  port: number;
-  credentials: boolean;
-  origin: string[];
-};
+import { PortConfig } from './plugins/port';
+import { PortWSConfig } from './plugins/port.ws';
+import { FastifyInstance } from 'fastify';
 
 const schema = yup.object({
-  logLevels: yup
-    .array(yup.string().oneOf(['all', 'none', 'error', 'info', 'log']))
-    .required(),
   natsURI: yup.string().trim().required(),
-  natsAuthSubjects: yup.array(yup.string().trim()).min(1).notRequired(),
+  natsAuthSubjects: yup
+    .array(yup.string().trim().required())
+    .optional(),
   natsNonAuthorizedSubjects: yup
-    .array(yup.string().trim())
-    .min(1)
-    .notRequired(),
-  natsNamespaceSubjects: yup.array(yup.string().trim()).min(1).notRequired(),
+    .array(yup.string().trim().required())
+    .optional(),
+  natsNamespaceSubjects: yup
+    .array(yup.string().trim().required())
+    .optional(),
   getNamespaceSubject: yup.string().when('natsNamespaceSubjects', {
-    is: (natsNamespaceSubjects) =>
-      natsNamespaceSubjects?.every((item) => !!item.trim()),
+    is: (natsNamespaceSubjects: any) =>
+      natsNamespaceSubjects?.every((item: any) => !!item.trim()),
     then: yup.string().trim().required(),
     otherwise: yup.string().trim().notRequired(),
   }),
@@ -40,43 +26,52 @@ const schema = yup.object({
   natsPass: yup.string().trim().notRequired(),
   httpPath: yup.string(),
   wsPath: yup.string(),
+  
+  origin: yup.array(yup.string().required()),
   port: yup.number().lessThan(65000).moreThan(0),
+  credentials: yup.bool()
 });
 
-const config: Config = {
-  logLevels: (process.env.LOG_LEVELS
-    ? process.env.LOG_LEVELS.split(',').filter((item) => !!item)
-    : ['all']) as Config['logLevels'],
-  natsURI: process.env.NATS_URI || 'localhost:4222',
-  natsAuthSubjects: process.env.NATS_AUTH_SUBJECTS?.split(',').filter(
-    (item) => !!item
-  ),
-  natsNonAuthorizedSubjects: process.env.NATS_NON_AUTHORIZED_SUBJECTS?.split(
-    ','
-  ).filter((item) => !!item),
-  natsNamespaceSubjects: process.env.NATS_NAMESPACE_SUBJECTS?.split(',').filter(
-    (item) => !!item
-  ),
-  getNamespaceSubject: process.env.NATS_GET_NAMESPACE_SUBJECT,
-  natsUser: process.env.NATS_USER,
-  natsPass: process.env.NATS_PASS,
-  port: parseInt(process.env.SERVER_PORT) || 8080,
-  httpPath: process.env.SERVER_HTTP_PATH || '/',
-  wsPath: process.env.SERVER_WS_PATH || '/',
-  origin: ['*'].concat(process.env.SERVER_ORIGIN?.split(',') || []),
-  credentials: !!process.env.SERVER_CREDENTIALS
-};
+// console.log('Config set', JSON.stringify(result, undefined, 2));
+type ServerConfig = {
+  fastify?: FastifyInstance
+  autoStart?: boolean
 
-try {
-  // console.log(config);
-  schema.validateSync(config);
-} catch (error) {
-  console.error('Config error', JSON.stringify(error.errors, undefined, 2));
-  process.exit(1);
+  port?: number
+  origin?: Array<string>
+  credentials?: boolean
 }
 
-const result = schema.cast(config);
-// console.log('Config set', JSON.stringify(result, undefined, 2));
+type Config = PortConfig & PortWSConfig & ServerConfig
 
 export type { Config };
-export default result as Config;
+
+function load(): Config {
+  dotenv.config();
+
+  const config: Config = {
+    natsURI: process.env.NATS_URI || 'localhost:4222',
+    natsAuthSubjects: process.env.NATS_AUTH_SUBJECTS?.split(',').filter(
+      (item) => !!item
+    ) || [],
+    natsNonAuthorizedSubjects: process.env.NATS_NON_AUTHORIZED_SUBJECTS?.split(
+      ','
+    ).filter((item) => !!item) || [],
+    natsNamespaceSubjects: process.env.NATS_NAMESPACE_SUBJECTS?.split(',').filter(
+      (item) => !!item
+    ) || [],
+    getNamespaceSubject: process.env.NATS_GET_NAMESPACE_SUBJECT as any,
+    natsUser: process.env.NATS_USER,
+    natsPass: process.env.NATS_PASS,
+    port: (process.env.SERVER_PORT && parseInt(process.env.SERVER_PORT)) || 8080,
+    httpPath: process.env.SERVER_HTTP_PATH || '/',
+    wsPath: process.env.SERVER_WS_PATH || '/',
+    origin: ['*'].concat(process.env.SERVER_ORIGIN?.split(',') || []),
+    credentials: !!process.env.SERVER_CREDENTIALS
+  };
+  
+  schema.validateSync(config);
+  return config
+}
+
+export default load;

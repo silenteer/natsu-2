@@ -33,8 +33,19 @@ export const nats: FastifyPluginAsync<NatsOptions> = fp(async (instance, opts) =
   const routes: RouteOptions[] = []
 
   instance.addHook('onRoute', (routeOpts) => {
-    instance.log.info({route: routeOpts.path}, 'Registering')
-    routes.push(routeOpts)
+    if (routeOpts.websocket) return
+    
+    if (
+      routeOpts.method.includes('GET') ||
+      routeOpts.method.includes('POST') 
+    ) {
+      instance.log.info({
+        method: routeOpts.method,
+        url: routeOpts.url
+      }, 'Registering')
+        
+      routes.push(routeOpts)
+    }
   })
 
   instance.addHook('onReady', async () => {

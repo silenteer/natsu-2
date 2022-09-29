@@ -4,7 +4,7 @@ import { NatsHandler, NatsHandleResult } from "@silenteer/natsu";
 import { NatsService } from "@silenteer/natsu-type";
 import { A, O } from "ts-toolbelt";
 
-import { createRoute, Route } from "./route";
+import { createRoute, Route, RouteDef } from "./route";
 import { nats } from "./plugins/nats"
 import bridge from "./plugins/bridge"
 import { provider, Provider } from "./plugins/provider";
@@ -74,7 +74,7 @@ export class Router<
 	fastify: FastifyInstance
 	private opts: RouterOpts | undefined
 	private root: FastifyInstance
-
+	
 	register: FastifyRegister<typeof this>
 
 	constructor(routerOpts?: RouterOpts) {
@@ -92,7 +92,6 @@ export class Router<
 			this.fastify.register(plugin, opts)
 			return this;
 		}
-		this.register(fastifyTimeout, this.opts?.handler)
 		this.register(bridge);
 		this.register(provider);
 		this.register(nats)
@@ -111,7 +110,7 @@ export class Router<
 		path extends string,
 		req, res,
 		routeCtx extends Record<string, unknown>
-	>(def: LegacyHandlerDef<path, req, res, checkImplements<context, routeCtx>>)
+	>(def: RouteDef<path, req, res, checkImplements<context, routeCtx>>)
 		: Router<routes | Route<path, req, res, routeCtx>, context>;
 
 	route<
@@ -126,7 +125,7 @@ export class Router<
 		routeCtx extends Record<string, any>
 	>(def:
 		Route<path, req, res, checkImplements<context, routeCtx>> |
-		LegacyHandlerDef<path, req, res, checkImplements<context, routeCtx>>
+		RouteDef<path, req, res, checkImplements<context, routeCtx>>
 	): Router<routes | Route<path, req, res, routeCtx>, context> {
 		if (typeof def === 'function') {
 			this.register(def)

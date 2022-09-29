@@ -92,7 +92,7 @@ function connect<A extends NatsService<string, unknown, unknown>>(
       throw new Error('Response is not JSON');
     }
 
-    if (response.code === 200) {
+    if (response.code === 200 || response.code as unknown as string === 'OK') {
       return response.body;
     } else if (
       (

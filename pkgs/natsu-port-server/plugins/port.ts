@@ -1,21 +1,34 @@
-import fp from "fastify-plugin"
+import fp from "fastify-plugin";
 
-import type {
-	NatsResponse,
-} from '@silenteer/natsu-type';
-import { authenticate, return400, sendNatsRequest, validateHttpRequest } from "./utils";
+import type { NatsResponse } from '@silenteer/natsu-type';
+import { natsHelper, HelperConfig } from "./natsHelper";
 
-type NatsPortOpts = {
-	portPath: string
-}
+export type PortConfig = {
+	httpPath?: string
+} & HelperConfig
 
-// nats port does few things
-// 1. chheck header for nats-subject
-// 2. forward body to nats connection
+export default fp(async function (fastify, opts: PortConfig) {
 
-export default fp(async function (fastify, opts: NatsPortOpts) {
+	const helper = natsHelper(opts)
 
-	fastify.post(opts.portPath, async (request, reply) => {
+	fastify.post(opts.httpPath || "/port", {
+		schema: {
+			headers: {
+				type: 'object',
+				properties: {
+					'nats-subject': { type: 'string' }
+				},
+				required: ['nats-subject']
+			},
+			body: {
+				type: "object",
+				properties: {
+					data: {type: "object"}
+				},
+				required: ['data']
+			}
+		}
+	}, async (request, reply) => {
 		const subject = request.headers['nats-subject'];
 		const logger = request.log.child({ subject });
 
@@ -24,17 +37,17 @@ export default fp(async function (fastify, opts: NatsPortOpts) {
 			body: request.body,
 		}, 'begin validation');
 
-		const validationResult = validateHttpRequest(request);
+		const validationResult = helper.validateHttpRequest(request);
 		
 		if (validationResult.code === 400) {
 			logger.info('validation error, resulting 400')
-			return400(reply);
+			helper.return400(reply);
 			return;
 		}
 		
 		logger.debug(`begin authentication`);
 
-		const authenticationResult = await authenticate(request);
+		const authenticationResult = await helper.authenticate(request);
 		if (authenticationResult.code !== 'OK') {
 			reply.send({
 				code: authenticationResult.code,
@@ -47,10 +60,12 @@ export default fp(async function (fastify, opts: NatsPortOpts) {
 
 		logger.info(`forwarding nats request`);
 
-		const { headers, response } = await sendNatsRequest({
+		const { headers, response } = await helper.sendNatsRequest({
 			request,
 			natsAuthResponse: authenticationResult.authResponse as NatsResponse,
 		});
+
+		logger.info({headers, response}, `received nats response`)
 
 		if (headers?.['set-cookie']) {
 			logger.info('request containing cookie, returning cookie value to client')
@@ -59,8 +74,6 @@ export default fp(async function (fastify, opts: NatsPortOpts) {
 
 		return response;
 	})
-
-
 
 }, {
 	name: 'nats-port'

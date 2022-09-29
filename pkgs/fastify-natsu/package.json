@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@fastify/funky": "^2.0.0",
+    "@fastify/nextjs": "^9.1.1",
     "@fastify/routes": "^5.0.0",
     "@silenteer/natsu": "^1.0.25",
     "@silenteer/natsu-type": "^0.0.12",
@@ -24,8 +25,12 @@
   "devDependencies": {
     "@vitest/coverage-c8": "^0.23.4",
     "@vitest/ui": "^0.23.4",
+    "next": "^12.3.1",
     "ts-toolbelt": "^9.6.0",
     "tsd": "^0.24.1",
     "vitest": "^0.23.4"
+  },
+  "peerDependencies": {
+    "next": "*"
   }
 }

@@ -1,22 +1,22 @@
-import fp from "fastify-plugin"
 import { randomUUID } from 'crypto';
-import '@fastify/websocket'; // to declare type
+import fp from "fastify-plugin";
 
 import type {
-  NatsPortWSRequest,
-  NatsPortWSErrorResponse,
-  NatsResponse,
+  NatsPortWSErrorResponse, NatsPortWSRequest, NatsResponse
 } from '@silenteer/natsu-type';
 
-import NatsService from "./service-nats"
-import { authenticate, getNamespace, sendWSResponse, validateWSRequest } from "./utils";
+import { NatsConfig, natsService } from "./natsService";
+import { HelperConfig, natsHelper } from "./natsHelper";
 
-type PortWSOpts = {
-	wsPath: string
+export type PortWSConfig = HelperConfig & NatsConfig & {
+  wsPath?: string
 }
 
-export default fp(async function(server, config: PortWSOpts) {
-	server.get(config.wsPath, { websocket: true }, (connection, request) => {
+export default fp(async function (server, config: PortWSConfig) {
+  const nats = natsService(config)
+  const helper = natsHelper(config)
+
+  server.get(config.wsPath || "/port", { websocket: true }, (connection, request) => {
     const connectionId = randomUUID();
     const logger = request.log.child({
       id: `ws-${connectionId}`
@@ -25,15 +25,15 @@ export default fp(async function(server, config: PortWSOpts) {
     logger.debug('incoming websocket request')
 
     connection.socket.on('close', () => {
-			logger.info('connection closed, unsubscribing ...')
-      NatsService.unsubscribeAllSubjects(connectionId);
+      logger.info('connection closed, unsubscribing ...')
+      nats.unsubscribeAllSubjects(connectionId);
     });
 
     connection.socket.on('message', async (message) => {
-			let wsRequest: NatsPortWSRequest;
-			
+      let wsRequest: NatsPortWSRequest | undefined;
+
       try {
-				logger.debug({ message: message.toString() }, 'incoming message')
+        logger.debug({ message: message.toString() }, 'incoming message')
         wsRequest = JSON.parse(message.toString()) as NatsPortWSRequest;
         request.headers = {
           ...wsRequest.headers,
@@ -41,17 +41,17 @@ export default fp(async function(server, config: PortWSOpts) {
           ['nats-subject']: wsRequest.subject,
         };
 
-        const validationResult = validateWSRequest(wsRequest);
+        const validationResult = helper.validateWSRequest(wsRequest);
         if (validationResult.code === 400) {
           const response: NatsPortWSErrorResponse = {
             subject: wsRequest.subject,
             code: validationResult.code,
           };
-          sendWSResponse({ connection, response });
+          helper.sendWSResponse({ connection, response });
           return;
         }
 
-        const authenticationResult = await authenticate(request);
+        const authenticationResult = await helper.authenticate(request);
         if (authenticationResult.code !== 'OK') {
           connection.destroy(
             new Error(JSON.stringify({ code: authenticationResult.code }))
@@ -59,7 +59,7 @@ export default fp(async function(server, config: PortWSOpts) {
           return;
         }
 
-        const getNamespaceResult = await getNamespace({
+        const getNamespaceResult = await helper.getNamespace({
           httpRequest: request,
           natsAuthResponse: authenticationResult.authResponse as NatsResponse,
         });
@@ -71,17 +71,17 @@ export default fp(async function(server, config: PortWSOpts) {
         }
 
         if (wsRequest.action === 'subscribe') {
-          NatsService.subscribe({
+          nats.subscribe({
             connectionId,
             subject: wsRequest.subject,
             namespace: getNamespaceResult.namespace,
             onHandle: (response) => {
               console.log("sending response", { response })
-              sendWSResponse({ connection, response });
+              helper.sendWSResponse({ connection, response });
             },
           });
         } else if (wsRequest.action === 'unsubscribe') {
-          NatsService.unsubscribe({
+          nats.unsubscribe({
             connectionId,
             subject: wsRequest.subject,
             namespace: getNamespaceResult.namespace,
@@ -91,15 +91,15 @@ export default fp(async function(server, config: PortWSOpts) {
         }
       } catch (error) {
         const response: NatsPortWSErrorResponse = {
-          subject: wsRequest?.subject,
+          subject: wsRequest?.subject as string,
           code: 500,
           body: JSON.stringify(error),
         };
-        sendWSResponse({ connection, response });
+        helper.sendWSResponse({ connection, response });
       }
     });
   })
 }, {
-	name: 'nats-port-ws',
-	dependencies: ['@fastify/websocket']
+  name: 'nats-port-ws',
+  dependencies: ['@fastify/websocket']
 })

@@ -8,7 +8,7 @@ import type Zod from 'zod'
 type MakeOptional<T, key extends keyof T> = Partial<Pick<T, key>> & Omit<T, key>
 
 type ContextShape = Record<string, any>
-type RouteDef<path extends string, req, res, ctx extends ContextShape> = MakeOptional<NatsHandler<NatsService<path, req, res>, ctx>, 'authorize' | 'validate'>
+export type RouteDef<path extends string, req, res, ctx extends ContextShape> = MakeOptional<NatsHandler<NatsService<path, req, res>, ctx>, 'authorize' | 'validate'>
   & {
     input?: Zod.Schema<req>
     output?: Zod.Schema<res>

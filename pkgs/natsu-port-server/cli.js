@@ -153,5 +153,5 @@ process
   .on('unhandledRejection', console.error)
   .on('uncaughtException', console.error);
 
-const server = require('.').default;
-server.start();
+const { portServer } = require('.').default;
+portServer();

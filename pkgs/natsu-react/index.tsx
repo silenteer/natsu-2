@@ -1,12 +1,13 @@
-import React, { useCallback, useContext, useEffect, useRef } from 'react';
+import React, { useContext, useEffect } from 'react';
 
-import type { Client, NatsuSocket } from '@silenteer/natsu-port';
+import type { Client, NatsuSocket } from '@silenteer/natsu-port-2';
 import type {
   NatsChannel,
   NatsPortWSResponse,
   NatsService,
 } from '@silenteer/natsu-type';
-import { useAsync } from 'react-async-hook';
+
+import { useQuery, QueryClient, QueryClientProvider, UseQueryOptions, useMutation, UseMutationOptions, QueryClientConfig } from "@tanstack/react-query"
 
 export type NatsuOptions<
   A extends NatsService<string, unknown, unknown>,
@@ -14,10 +15,8 @@ export type NatsuOptions<
 > = {
   natsuClient: Client<A>;
   makeNatsuSocketClient?: () => NatsuSocket<B>;
-};
-
-type RequestOtions = {
-  immediate: boolean;
+  queryClient?: QueryClient,
+  queryClientConfig?: QueryClientConfig 
 };
 
 const createNatsuProvider = <
@@ -26,7 +25,10 @@ const createNatsuProvider = <
 >({
   natsuClient,
   makeNatsuSocketClient,
+  queryClient,
+  queryClientConfig
 }: NatsuOptions<A, B>) => {
+  console.log(">>>>>>>>>>>>>>>>>>>> should call once only")
   const natsuSocket =
     typeof window !== 'undefined' ? makeNatsuSocketClient?.() : undefined;
 
@@ -35,15 +37,25 @@ const createNatsuProvider = <
     natsuSocket,
   });
 
+  const QueryClientProviderWrapper = ({ children }) => {
+    return queryClient
+      ? <>{children}</>
+      : <QueryClientProvider client={new QueryClient(queryClientConfig)}>
+        {children}
+      </QueryClientProvider>
+  }
+
   const NatsuProvider = (props: React.PropsWithChildren<{}>) => (
-    <context.Provider
-      value={{
-        natsuClient,
-        natsuSocket,
-      }}
-    >
-      {props.children}
-    </context.Provider>
+    <QueryClientProviderWrapper>
+      <context.Provider
+        value={{
+          natsuClient,
+          natsuSocket,
+        }}
+      >
+        {props.children}
+      </context.Provider>
+    </QueryClientProviderWrapper>
   );
 
   const useNatsuClient = () => {
@@ -63,63 +75,47 @@ const createNatsuProvider = <
         Subject,
         Extract<B, { subject: Subject }>['response']
       >
-    ) => Promise<void>,
-    options: RequestOtions = { immediate: true }
+    ) => Promise<void>
   ) {
     const natsuSocket = useNatsuSocket();
-    const unsubscribeRef = useRef<() => void>();
-
-    const sub = useCallback(() => {
-      const subscriber = natsuSocket?.subscribe(address, handler);
-      unsubscribeRef.current = subscriber?.unsubscribe;
-    }, [address]);
-
-    const unsub = () => {
-      unsubscribeRef.current?.();
-      unsubscribeRef.current = undefined;
-    };
-
-    const { immediate = true } = options || {};
 
     useEffect(() => {
-      if (immediate) {
-        sub();
-      }
+      const subscriber = natsuSocket?.subscribe(address, handler);
 
       return () => {
-        unsub();
+        subscriber.then(unsub => unsub.unsubscribe())
       };
     }, [address]);
-
-    return { sub, unsub };
   }
 
-  const useRequest = <Subject extends A['subject']>(
+  const _useQuery = <Subject extends A['subject']>(
+    address: Subject,
+    data?: Extract<A, { subject: Subject }>['request'],
+    queryOpts?: UseQueryOptions
+  ) => {
+    const natsuClient = useNatsuClient();
+    const queryFn = async () => natsuClient(address, data)
+
+    return useQuery([address, data], queryFn, queryOpts)
+  };
+
+  const _useMutation = <Subject extends A['subject']>(
     address: Subject,
     data?: Extract<A, { subject: Subject }>['request'],
     dependencies: [] = [],
-    { immediate }: RequestOtions = { immediate: true }
+    mutationOpts?: UseMutationOptions
   ) => {
     const natsuClient = useNatsuClient();
+    const queryFn = async () => natsuClient(address, data)
 
-    return useAsync<Extract<A, { subject: Subject }>['request']>(
-      () => natsuClient(address, data),
-      [address, ...dependencies],
-      {
-        executeOnMount: immediate,
-      }
-    );
-  };
-
-  const useDefferedRequest: typeof useRequest = (address, data) => {
-    return useRequest(address, data, undefined, { immediate: false });
+    return useMutation([address, data, ...dependencies], queryFn, mutationOpts)
   };
 
   return {
     NatsuProvider,
     useNatsuClient,
-    useRequest,
-    useDefferedRequest,
+    useQuery: _useQuery,
+    useMutation: _useMutation,
     useSubscribe,
   };
 };

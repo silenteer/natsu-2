@@ -1,0 +1,16 @@
+{
+  "name": "basic",
+  "packageManager": "yarn@3.2.3",
+  "scripts": {
+    "example:server": "tsx server.ts | pino-pretty"
+  },
+  "dependencies": {
+    "@silenteer/natsu": "^1.0.25",
+    "@silenteer/natsu-2": "workspace: *",
+    "@silenteer/natsu-type": "^0.0.12",
+    "fastify": "^4.6.0",
+    "pino-pretty": "^9.1.0",
+    "tsx": "^3.9.0",
+    "zod": "^3.19.1"
+  }
+}
