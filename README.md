@@ -13,10 +13,10 @@ The whole package is built around fastify-as-a-router, instead of rolling your o
 - maybe embeding nextjs into the package so the full-stack application can be done much easier
 
 ### TODO
-- [ ] namespace concept implementation
+- [x] namespace concept implementation
 - [ ] pub/sub SPI, API
-- [ ] legacy shape so natsu unit in v1 should still work without any migration
-- [ ] client implemenation
-- [ ] test-tools so the implemenation can be tested easily
+- [x] legacy shape so natsu unit in v1 should still work without any migration
+- [x] client implemenation
+- [ ] test-tools so the implementation can be tested easily
 - [ ] release
-- [ ] example with client-side included
+- [x] example with client-side included
