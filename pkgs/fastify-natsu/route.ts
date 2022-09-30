@@ -21,7 +21,7 @@ function logger(req: FastifyRequest, ak?: Record<string, any>) {
 }
 
 function validateZodInput(def: AnyRouteDef): preHandlerAsyncHookHandler {
-  return async (req, rep) => {
+  return async function validateZod (req, rep) {
     if (def.input != null) {
       const log = logger(req)
 
@@ -38,7 +38,7 @@ function validateZodInput(def: AnyRouteDef): preHandlerAsyncHookHandler {
 }
 
 function validatePreHandler(def: AnyRouteDef): preHandlerAsyncHookHandler {
-  return async (req, rep) => {
+  return async function validate(req, rep) {
     if (def.validate != null) {
       const validationResult = await def.validate({ headers: req.headers, body: req.body }, req._provider as any)
 
@@ -54,7 +54,7 @@ function validatePreHandler(def: AnyRouteDef): preHandlerAsyncHookHandler {
 }
 
 function authorizePreHandler(def: AnyRouteDef): preHandlerAsyncHookHandler {
-  return async (req, rep) => {
+  return async function authorize(req, rep) {
     if (def.authorize != null) {
       const authorizationResult = await def.authorize({ headers: req.headers, body: req.body }, req._provider as any)
       if (authorizationResult.code !== 'OK') {
@@ -70,6 +70,12 @@ function authorizePreHandler(def: AnyRouteDef): preHandlerAsyncHookHandler {
 
 async function combineData(req: FastifyRequest, rep: FastifyReply) {
   const combinedData = Object.assign({}, req.params, req.body, req.query);
+  req.log.debug({
+    params: req.params,
+    body: req.body,
+    query: req.query,
+    combineData
+  }, 'combining')
   req.body = combinedData;
 }
 

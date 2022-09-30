@@ -14,6 +14,11 @@ const {
   natsuClient: connect({
     serverURL: new URL('http://localhost:8000/port'),
   }),
+  makeNatsuSocketClient() {
+    return connectWS({
+      serverURL: new URL('ws://localhost:8000/port')
+    })
+  },
   queryClientConfig: {
     defaultOptions: {
       queries: {

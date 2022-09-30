@@ -943,9 +943,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"basic@workspace:*, basic@workspace:examples/server":
+"basic@workspace:*, basic@workspace:examples/basic":
   version: 0.0.0-use.local
-  resolution: "basic@workspace:examples/server"
+  resolution: "basic@workspace:examples/basic"
   dependencies:
     "@silenteer/natsu": ^1.0.25
     "@silenteer/natsu-2": "workspace: *"

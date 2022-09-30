@@ -34,7 +34,7 @@ export const nats: FastifyPluginAsync<NatsOptions> = fp(async (instance, opts) =
 
   instance.addHook('onRoute', (routeOpts) => {
     if (routeOpts.websocket) return
-    
+
     if (
       routeOpts.method.includes('GET') ||
       routeOpts.method.includes('POST') 
@@ -56,9 +56,12 @@ export const nats: FastifyPluginAsync<NatsOptions> = fp(async (instance, opts) =
 
         ; (async () => {
           for await (const m of sub) {
-            const response = await instance.bridge(subject, {
-              data: m.data.length > 0 && codec.decode(m.data),
-            })
+            const data = m.data.length > 0 && codec.decode(m.data)
+            log.info({
+              data,
+              subject: m.subject
+            }, 'new message sent to')
+            const response = await instance.bridge(subject, { data })
 
             m.reply && response && m.respond(codec.encode(response))
           }

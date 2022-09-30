@@ -52,8 +52,10 @@ function makeClient(server: Router) {
 	return async (path: string, opts?: RequestOptions) => request(
 		getAddress(server.fastify.server.address()) + '/' + path,
 		{
+			method: 'POST',
+			timeout: 100000,
+			contentType: 'application/json',
 			...opts,
-			timeout: 100000
 		},
 	)
 }
@@ -126,12 +128,13 @@ describe("router", async () => {
 	test("body should work", async () => {
 		await call('echo', {
 			data: {
-				msg: 'echo'
+					msg: 'echo'
 			}
 		})
 
 		expect(mockHandle).toBeCalledWith(
 			expect.objectContaining({
+				headers: expect.anything(),
 				body: { msg: 'echo' }
 			}),
 			expect.anything()
@@ -241,15 +244,13 @@ describe("router", async () => {
 			listenOpts: {
 				port: 0
 			},
-			handler: {
-				timeout: 200
-			}
+			timeout: 200
 		})
 
 		timeoutServer.route({
 			subject: 'long',
 			async handle() {
-				await new Promise(r => setTimeout(r, 500));
+				await new Promise(r => setTimeout(r, 10000));
 				return {
 					code: 'OK',
 					body: 'not supposed to be there'

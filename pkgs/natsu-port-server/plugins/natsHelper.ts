@@ -164,6 +164,7 @@ export function natsHelper(config: HelperConfig) {
 
 	function sendWSResponse(params: {
 		connection: fastifyWebsocket.SocketStream;
+		request: FastifyRequest,
 		response: NatsPortWSResponse<string> | NatsPortWSErrorResponse<string>;
 	}) {
 		const { connection, response } = params;

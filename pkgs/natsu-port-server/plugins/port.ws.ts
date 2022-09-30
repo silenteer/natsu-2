@@ -47,7 +47,7 @@ export default fp(async function (server, config: PortWSConfig) {
             subject: wsRequest.subject,
             code: validationResult.code,
           };
-          helper.sendWSResponse({ connection, response });
+          helper.sendWSResponse({ connection, request, response });
           return;
         }
 
@@ -76,8 +76,7 @@ export default fp(async function (server, config: PortWSConfig) {
             subject: wsRequest.subject,
             namespace: getNamespaceResult.namespace,
             onHandle: (response) => {
-              console.log("sending response", { response })
-              helper.sendWSResponse({ connection, response });
+              helper.sendWSResponse({ connection, request, response });
             },
           });
         } else if (wsRequest.action === 'unsubscribe') {
@@ -95,7 +94,7 @@ export default fp(async function (server, config: PortWSConfig) {
           code: 500,
           body: JSON.stringify(error),
         };
-        helper.sendWSResponse({ connection, response });
+        helper.sendWSResponse({ connection, request, response });
       }
     });
   })

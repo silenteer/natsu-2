@@ -28,7 +28,6 @@ const createNatsuProvider = <
   queryClient,
   queryClientConfig
 }: NatsuOptions<A, B>) => {
-  console.log(">>>>>>>>>>>>>>>>>>>> should call once only")
   const natsuSocket =
     typeof window !== 'undefined' ? makeNatsuSocketClient?.() : undefined;
 

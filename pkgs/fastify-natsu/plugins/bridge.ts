@@ -20,8 +20,7 @@ export default fp(async function (f, opts: BridgeOpts) {
 	const keyCache = new Map<string, {id: string}>()
 
 	// register preValidate to inject the body in
-	f.addHook('preValidation', async function (req, rep) {
-		
+	f.addHook('preValidation', async function bridgePreValidation (req, rep) {
 		// skip if body is not empty
 		if (req.body) return
 
@@ -40,6 +39,7 @@ export default fp(async function (f, opts: BridgeOpts) {
 				.send({ errors: `BRIDGE_ID: ${bridgeId} not found` })
 			return rep;
 		}
+		
 		req.log.debug('bridge prep')
 		const bridger = bridge.get(keyCache.get(bridgeId) as any)
 		if (!bridger) {
@@ -56,10 +56,11 @@ export default fp(async function (f, opts: BridgeOpts) {
 			req.body = bridger.data
 		}
 
+		req.log.info({ headers: req.headers, body: req.body }, 'bridge information')
 	})
 
 	// register onSend to skip sending back to client, only sending out code 200
-	f.addHook('preSerialization', async function (req, rep, payload) {
+	f.addHook('preSerialization', async function preSerialization (req, rep, payload) {
 		const bridgeId = req.headers[BRIDGE_ID] as string
 		if (keyCache.has(bridgeId)) {
 			req.log.info({payload}, 'bridge steal sending')

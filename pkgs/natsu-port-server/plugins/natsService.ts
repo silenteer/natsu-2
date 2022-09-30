@@ -105,7 +105,6 @@ export function natsService(config: NatsConfig) {
 
     let shouldSubscribe: boolean | undefined;
     if (!subscriptions[_subject]?.subscription) {
-      console.log('>>>>>>>>>>> subscribing', { _subject, namespace })
       const subscription = (await getConnection()).subscribe(_subject);
       subscriptions[_subject] = { subscription, connections: [] };
       shouldSubscribe = true;
@@ -128,6 +127,9 @@ export function natsService(config: NatsConfig) {
             subject: message.subject,
             data
           })
+
+          // validate nats package
+          // parse nats package
 
           if (data) {
             subscriptions[_subject].connections.forEach(({ onHandle }) => {

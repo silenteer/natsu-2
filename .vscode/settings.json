@@ -6,6 +6,6 @@
 	"workbench.iconTheme": "city-lights-icons-vsc",
 	"workbench.tree.indent": 8,
 	"explorer.compactFolders": false,
-	"vitest.commandLine": "npx vitest",
+	"vitest.commandLine": "",
 	"vitest.enable": true
 }

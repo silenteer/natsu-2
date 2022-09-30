@@ -1,14 +1,14 @@
 import fastify, { FastifyInstance, FastifyListenOptions, FastifyRegister, FastifyServerOptions } from "fastify";
 
-import { NatsHandler, NatsHandleResult } from "@silenteer/natsu";
-import { NatsService } from "@silenteer/natsu-type";
-import { A, O } from "ts-toolbelt";
+import { NatsHandleResult } from "@silenteer/natsu";
+import { A } from "ts-toolbelt";
 
 import { createRoute, Route, RouteDef } from "./route";
 import { nats } from "./plugins/nats"
 import bridge from "./plugins/bridge"
+import allHooks from "./plugins/all-hooks";
+import timeout from "./plugins/timeout"
 import { provider, Provider } from "./plugins/provider";
-import fastifyTimeout, { type TimeoutConfig } from './plugins/timeout'
 import fp from "fastify-plugin";
 
 type checkImplements<ServiceContext, RouteContext> =
@@ -17,10 +17,6 @@ type checkImplements<ServiceContext, RouteContext> =
 	: A.Extends<RouteContext, ServiceContext> extends 1
 	? ServiceContext
 	: never;
-
-type LegacyHandlerDef<path extends string, req, res, context extends Record<string, unknown>> = O.Optional<
-	NatsHandler<NatsService<path, req, res>, context>, "authorize" | "validate"
->
 
 type FastifyOpts = {
 	fastify: FastifyInstance
@@ -36,23 +32,17 @@ type PortOpts = {
 	portEnabled?: boolean
 }
 
-type HandlerOpt = {
-	handler?: TimeoutConfig
+type TimeoutOpts = {
+	timeout?: number
 }
 
-type RouterOpts = FastifyOpts & PortOpts & Partial<HandlerOpt>
+type RouterOpts = FastifyOpts & PortOpts & TimeoutOpts
 
 type inferRoute<T> = T extends Route<infer path, infer req, infer res, any> ? {
 	subject: path
 	request: req
 	response: res
 } : any;
-
-declare module 'fastify' {
-	interface FastifyRequest {
-		_timeout: NodeJS.Timeout
-	}
-}
 
 type RouterInjector = {
 	routerFastify: FastifyInstance
@@ -67,34 +57,53 @@ const router = fp(function (fastify: FastifyInstance, opts: RouterInjector, done
 	name: 'fastify-router'
 })
 
+const buildOpts = (opts?: RouterOpts) => ({
+	portEnabled: true,
+	timeout: 5000,
+	...opts,
+	listenOpts: {
+		port: 0,
+		...opts?.listenOpts
+	},
+	serverOpts: {
+		logger: {
+			level: 'debug'
+		},
+		...opts?.serverOpts,
+	}
+} as RouterOpts)
+
 export class Router<
 	routes extends Route<any, any, any, any> = never,
 	context extends Record<string, any> = {}
 > {
 	fastify: FastifyInstance
-	private opts: RouterOpts | undefined
+	private opts: RouterOpts
 	private root: FastifyInstance
 	
 	register: FastifyRegister<typeof this>
 
 	constructor(routerOpts?: RouterOpts) {
-		this.opts = routerOpts
+		this.opts = buildOpts(routerOpts)
 		this.root = routerOpts?.fastify
 			? routerOpts.fastify
 			: fastify(routerOpts?.serverOpts);
 
 		const routerFastifyRef = { routerFastify: this.root }
 		this.root.register(router, routerFastifyRef)
+		
 		// Set the fastify to the child context, as such, all of routes are going to be under this context
 		this.fastify = routerFastifyRef.routerFastify;
-
+		
 		this.register = (plugin, opts) => {
 			this.fastify.register(plugin, opts)
 			return this;
 		}
+		this.register(allHooks)
 		this.register(bridge);
 		this.register(provider);
 		this.register(nats)
+		this.register(timeout, { timeout: routerOpts?.timeout })
 	}
 
 	use<
@@ -152,7 +161,6 @@ export class Router<
 			}, input>
 	): Promise<result> {
 		await this.fastify.ready()
-		this.fastify.ready
 		return this.fastify.bridge(subject, {
 			data: input
 		})
