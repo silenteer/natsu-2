@@ -21,6 +21,7 @@ jobs:
         uses: onichandame/nats-action@master
         with:
           port: "4222 4223 4224"
+      - run: yarn install --immutable
       - name: Run test
         run: |
           yarn workspace @silenteer/natsu-2 vitest run | yarn pino-pretty -lcfS -i hostname
