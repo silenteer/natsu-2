@@ -24,4 +24,4 @@ jobs:
       - run: yarn install --immutable
       - name: Run test
         run: |
-          yarn workspace @silenteer/natsu-2 vitest run | yarn pino-pretty -lcfS -i hostname
+          cd pkgs/fastify-natsu && (yarn vitest run | yarn pino-pretty -lcfS -i hostname)
