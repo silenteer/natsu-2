@@ -1,5 +1,4 @@
-import fastify from 'fastify';
-import 'colors';
+import fp from "fastify-plugin"
 
 import port from './plugins/port'
 import portWS from './plugins/port.ws'
@@ -7,13 +6,9 @@ import load, { Config } from './configuration';
 
 type PortServerOpts = Config
 
-async function portServer(portServerOpts?: PortServerOpts) {
-  const server = portServerOpts?.fastify || fastify({
-    logger: true
-  })
+const portServer = fp(async function(server, opts?: PortServerOpts) {
+  const config = opts || load()
 
-  const config = portServerOpts || load()
-  
   server.log.info(config, 'starting server with')
 
   await server.register(require('@fastify/websocket'))
@@ -32,10 +27,11 @@ async function portServer(portServerOpts?: PortServerOpts) {
       port: config.port || 0
     })
   }
+}, {
+  name: 'fastify-port-server'
+})
 
-  return server
-}
-
-export default {
+export {
   portServer,
-};
+  type PortServerOpts
+}

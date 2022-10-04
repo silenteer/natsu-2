@@ -1,56 +1,38 @@
-import { RouteOptions } from "fastify";
 import fp from "fastify-plugin";
 
 export type TimeoutConfig = {
 	timeout?: number
 }
 
-const defaultTimeoutConfig = {
-	timeout: 5000
-}
-
-export default fp(async (f, config: TimeoutConfig = defaultTimeoutConfig) => {
-	config = {...defaultTimeoutConfig, ...config}
-	const timeoutCache = new WeakMap()
-	const wsRoutes: RouteOptions[] = []
+export default fp(async (f, config?: TimeoutConfig) => {
 	const logger = f.log.child({ name: 'timeout-setter'})
 
-	logger.info({ timeout: config.timeout }, 'setting up timeout plugin')
+	logger.info({ config }, 'setting up timeout plugin')
 
-	f.addHook('onRoute', (routeOpts) => {
-		if (routeOpts.websocket) {
-			wsRoutes.push(routeOpts)
-			logger.debug({ routeOpts }, 'ignoring route from setting timeout')
-		}
-	})
+	f.decorateRequest('_timeout', () => Object.create(null))
 
 	f.addHook('onRequest', async function timeOutSetter(req, rep) {
-		logger.debug({ req: req, wsRoutes }, 'checking ignore list')
-
-		if (wsRoutes.findIndex(item => 
-			item.url === req.url &&
-			item.method === req.method
-		) !== -1) {
-			logger.debug({req}, "Ignoring")
-			return
-		}
+		if (req.ws) return
 
 		const timeout = setTimeout(() => {
-			rep
-				.code(504)
-				.send({errors: 'Timed out'})
-		}, config.timeout)
+			!rep.sent && rep.requestTimeout()
+		}, config?.timeout || 5000)
 
-		req.log.debug({ duration: config.timeout }, "Setting timeout")
-		timeoutCache.set(req, timeout)
+		req._timeout = timeout
 	})
 
 	f.addHook('onSend', async function timeoutCleaner (req, rep, payload) {
-		if (timeoutCache.get(req))
+		if (req._timeout)
 			req.log.debug( "Clearing timeout")
-			clearTimeout(timeoutCache.get(req))
+			clearTimeout(req._timeout)
 		
 	})
 }, {
 	name: 'fastify-timeout'
 })
+
+declare module 'fastify' {
+	interface FastifyRequest {
+		_timeout: NodeJS.Timeout
+	}
+}

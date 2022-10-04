@@ -1,3 +1,4 @@
+import "./tracing"
 import fastify, { FastifyInstance, FastifyListenOptions, FastifyRegister, FastifyServerOptions } from "fastify";
 
 import { NatsHandleResult } from "@silenteer/natsu";
@@ -6,10 +7,15 @@ import { A } from "ts-toolbelt";
 import { createRoute, Route, RouteDef } from "./route";
 import { nats } from "./plugins/nats"
 import bridge from "./plugins/bridge"
-import allHooks from "./plugins/all-hooks";
-import timeout from "./plugins/timeout"
+import timeout, { type TimeoutConfig } from "./plugins/timeout"
 import { provider, Provider } from "./plugins/provider";
 import fp from "fastify-plugin";
+
+import zod from "zod"
+
+import sensible from "@fastify/sensible"
+
+import { portServer, PortServerOpts } from "@silenteer/natsu-port-server-2"
 
 type checkImplements<ServiceContext, RouteContext> =
 	ServiceContext extends Record<string, unknown>
@@ -30,13 +36,10 @@ type FastifyOpts = {
 
 type PortOpts = {
 	portEnabled?: boolean
+	portServerOpts?: PortServerOpts
 }
 
-type TimeoutOpts = {
-	timeout?: number
-}
-
-type RouterOpts = FastifyOpts & PortOpts & TimeoutOpts
+type RouterOpts = FastifyOpts & PortOpts & TimeoutConfig
 
 type inferRoute<T> = T extends Route<infer path, infer req, infer res, any> ? {
 	subject: path
@@ -57,21 +60,20 @@ const router = fp(function (fastify: FastifyInstance, opts: RouterInjector, done
 	name: 'fastify-router'
 })
 
-const buildOpts = (opts?: RouterOpts) => ({
-	portEnabled: true,
-	timeout: 5000,
-	...opts,
-	listenOpts: {
-		port: 0,
-		...opts?.listenOpts
-	},
-	serverOpts: {
-		logger: {
-			level: 'debug'
-		},
-		...opts?.serverOpts,
-	}
-} as RouterOpts)
+const routerConfigSchema = zod.object({
+	portEnabled: zod.boolean().optional().default(false),
+	listenOpts: zod.any()
+		.optional()
+		.default({ port: 0 }),
+	serverOpts: zod.any()
+		.optional()
+		.default({
+			logger: {
+				level: 'debug'
+			},
+		} as FastifyServerOptions),
+	timeout: zod.number().optional().default(5000)
+})
 
 export class Router<
 	routes extends Route<any, any, any, any> = never,
@@ -84,13 +86,21 @@ export class Router<
 	register: FastifyRegister<typeof this>
 
 	constructor(routerOpts?: RouterOpts) {
-		this.opts = buildOpts(routerOpts)
+		const parsedConfig = routerConfigSchema
+			.passthrough()
+			.parse(routerOpts)
+
+		this.opts = parsedConfig
 		this.root = routerOpts?.fastify
 			? routerOpts.fastify
 			: fastify(routerOpts?.serverOpts);
 
+		this.root.log.info({routerOpts: this.opts}, "Starting server with")
+
 		const routerFastifyRef = { routerFastify: this.root }
 		this.root.register(router, routerFastifyRef)
+		this.root.register(sensible)
+		this.root.register(timeout, { timeout: this.opts.timeout })
 		
 		// Set the fastify to the child context, as such, all of routes are going to be under this context
 		this.fastify = routerFastifyRef.routerFastify;
@@ -99,11 +109,14 @@ export class Router<
 			this.fastify.register(plugin, opts)
 			return this;
 		}
-		this.register(allHooks)
+		// this.register(allHooks)
 		this.register(bridge);
 		this.register(provider);
 		this.register(nats)
-		this.register(timeout, { timeout: routerOpts?.timeout })
+
+		if (this.opts.portEnabled) {
+			this.root.register(portServer, parsedConfig)
+		}
 	}
 
 	use<

@@ -8,15 +8,22 @@ The whole package is built around fastify-as-a-router, instead of rolling your o
 - Nats as a sidecar, so you can call RPC via Nats
 - Server call is implemented using a bridge model to give near direct all (see the bench to see the result of the attempt)
 - Can fully reuse all of fastify plugins
-- tRPC 
 - Backward compatible with version 1 natsu definition
 - maybe embeding nextjs into the package so the full-stack application can be done much easier
+- Fluent API to register routes. Type check toward compatability between route and server (aka server cannot provide what the route need)
 
 ### TODO
 - [x] namespace concept implementation
-- [ ] pub/sub SPI, API
-- [x] legacy shape so natsu unit in v1 should still work without any migration
 - [x] client implemenation
-- [ ] test-tools so the implementation can be tested easily
-- [ ] release
+- [x] legacy shape so natsu unit in v1 should still work without any migration
 - [x] example with client-side included
+- [x] better logging
+- [ ] integrate with opentelemetry for tracing
+- [ ] pub/sub SPI, API
+- [ ] test-tools so the implementation can be tested easily
+- [ ] conclude configuration for app
+- [ ] dedicated protocol testing (port, rpc, nats, via websocket)
+- [ ] add more providers (prisma, redis, etc)
+- [ ] dev mode and production mode
+- [ ] auto test in github actions
+- [ ] release

@@ -244,7 +244,7 @@ describe("router", async () => {
 			listenOpts: {
 				port: 0
 			},
-			timeout: 200
+			timeout: 1000
 		})
 
 		timeoutServer.route({
@@ -261,7 +261,7 @@ describe("router", async () => {
 		await timeoutServer.start()
 		const result = await makeClient(timeoutServer)('long')
 
-		expect(result.statusCode).toBe(504)
+		expect(result.statusCode).toBe(408)
 		expect(result.data.toString()).not.toBe('not supposed to be there')
 	})
 })

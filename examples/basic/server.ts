@@ -7,9 +7,7 @@ import echo from './routes/echo'
 import ping from './legacy/ping';
 import natsProvider from './providers/nats.provider'
 
-import port from "@silenteer/natsu-port-server-2"
-
-const base = new Router({
+const server = new Router({
   serverOpts: {
     logger: {
       name: 'root',
@@ -19,22 +17,14 @@ const base = new Router({
   listenOpts: {
     port: 8000
   },
-  portEnabled: true
+  portEnabled: true,
+  timeout: 7000
 })
-  .use(natsProvider)
-
-port.portServer({ 
-  fastify: base.fastify,
-  autoStart: false
-})
-
-export type Context = typeof base.Context
-
-const server = base
-  .route(plus)
-  .route(minus)
-  .route(echo)
-  .route(ping)
+.use(natsProvider)
+.route(plus)
+.route(minus)
+.route(echo)
+.route(ping)
 
 export type Routes = typeof server.Routes
 

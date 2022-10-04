@@ -1,3 +1,5 @@
+import "./tracing"
+
 import { createRoute } from './route'
 import { Router } from './router'
 import { createProvider } from './plugins/provider'
