@@ -112,6 +112,7 @@ export class Router<
 		// this.register(allHooks)
 		this.register(bridge);
 		this.register(provider);
+		
 		this.register(nats)
 
 		if (this.opts.portEnabled) {

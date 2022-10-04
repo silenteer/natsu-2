@@ -1,0 +1,26 @@
+# this workflow will run on every pr to make sure the project is following the guidelines
+
+name: CI
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Build and Check Astro
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: yarn
+      - name: Create Nats cluster
+        uses: onichandame/nats-action@master
+        with:
+          port: "4222 4223 4224"
+      - name: Run test
+        run: |
+          yarn workspace @silenteer/natsu-2 vitest run | yarn pino-pretty -lcfS -i hostname
