@@ -17,7 +17,6 @@ export type ProviderDef<
 	value extends any,
 	opts extends Record<string, any>
 > = {
-	name: string
 	path: path
 	value: (options?: opts) => Promise<value>
 }
@@ -28,10 +27,10 @@ export function createProvider<
 	options extends Record<string, any> = {}
 >(def: ProviderDef<path, value, options>): Provider<path, value, options> {
 	return fp(async (f: FastifyInstance, opts: options) => {
-		const instance: any = await def.value(opts)
+		const instance: any = await def.value.bind(f)(opts)
 		f._provider[def.path] = instance
 	}, {
-		name: `provider-${def.name}`,
+		name: `provider-${def.path}`,
 		dependencies: ['fastify-provider']
 	})
 }

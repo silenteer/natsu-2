@@ -39,7 +39,7 @@ type PortOpts = {
 	portServerOpts?: PortServerOpts
 }
 
-type RouterOpts = FastifyOpts & PortOpts & TimeoutConfig
+export type RouterOpts = FastifyOpts & PortOpts & TimeoutConfig
 
 type inferRoute<T> = T extends Route<infer path, infer req, infer res, any> ? {
 	subject: path
@@ -124,8 +124,8 @@ export class Router<
 		path extends string,
 		value extends any,
 		options extends Record<string, any>
-	>(def: Provider<path, value, options>): Router<routes, context & Record<path, value>> {
-		this.register(def);
+	>(def: Provider<path, value, options>, opts: options): Router<routes, context & Record<path, value>> {
+		this.register(def, opts as any);
 		return this as any;
 	}
 
