@@ -1,10 +1,10 @@
 import type { FastifyPluginAsync, RouteOptions } from 'fastify'
 import { connect, ConnectionOptions, NatsConnection, StringCodec, JSONCodec, MsgHdrs, MsgHdrsImpl } from 'nats'
 import fp from 'fastify-plugin'
+import './bridge'
 
-interface NatsOptions {
+export type NatsOptions = {
   connectionOptions?: ConnectionOptions
-  codec: 'string' | 'json'
 }
 
 export function objectToHeaders(source: Record<string, any>) {
@@ -21,29 +21,24 @@ export const nats: FastifyPluginAsync<NatsOptions> = fp(async (instance, opts) =
   nc = await connect(opts?.connectionOptions)
   log.info('Connected to nats successfully')
 
-  const stringCodec = StringCodec()
-  const jsonCodec = JSONCodec()
-
-  const codec = opts?.codec === 'string'
-    ? stringCodec
-    : jsonCodec
+  const codec = JSONCodec()
+  log.debug("use JSON codec only")
 
   instance.addHook('onClose', async () => await nc.close())
 
   const routes: RouteOptions[] = []
 
   instance.addHook('onRoute', (routeOpts) => {
-    if (routeOpts.websocket) return
+    if (routeOpts['websocket']) return
 
     if (
-      routeOpts.method.includes('GET') ||
-      routeOpts.method.includes('POST') 
+      routeOpts.method.includes('POST')
     ) {
       instance.log.info({
         method: routeOpts.method,
         url: routeOpts.url
       }, 'Registering')
-        
+
       routes.push(routeOpts)
     }
   })
@@ -51,21 +46,48 @@ export const nats: FastifyPluginAsync<NatsOptions> = fp(async (instance, opts) =
   instance.addHook('onReady', async () => {
     for (const route of routes) {
       const subject = route.url.substring(1)
-
       const sub = nc.subscribe(subject)
 
         ; (async () => {
           for await (const m of sub) {
-            const data = m.data.length > 0 && codec.decode(m.data)
-            log.info({
-              data,
-              subject: m.subject
-            }, 'new message sent to')
-            const response = await instance.bridge(subject, { data })
+            try {
+              const data = m.data.length > 0 && codec.decode(m.data)
+              log.debug({
+                data,
+                route
+              }, 'incoming message')
 
-            m.reply && response && m.respond(codec.encode(response))
+              const result = await instance.bridge(subject, { data })
+                .catch(error => ({
+                  code: 500,
+                  errors: error
+                }))
+
+              if (!result.code) {
+                throw new Error("invalid bridge result")
+              }
+
+              if (result && m.reply) {
+                // Really need to define the protocol here. We actually copied the header from request to response
+                const response = {
+                  headers: { ...data?.['headers'], ...result?.headers },
+                  body: result?.body,
+                  code: result.code
+                }
+
+                log.debug({
+                  response, 
+                  route
+                }, "responding with")
+
+                m.respond(codec.encode(response))
+              }
+            } catch (e) {
+              log.error(e, "natsu uncaught exception")
+            }
           }
-        })().then()
+        })()
+          .then()
     }
   })
 }, {

@@ -10,8 +10,31 @@ type BridgeOpts = {}
 export const BRIDGE_ID = 'bridge-id'
 export const BRIDGE_HANDLER = 'nats'
 
-export default fp(async function (f, opts: BridgeOpts) {
+function normalizeHeaders(headers: any) {
+	const normalizedHeaders = {}
+	if (!headers) return normalizedHeaders
 
+	Object.keys(headers).forEach(header => {
+		const headerValue = headers[header]
+
+		if (typeof headerValue === 'string') {
+			normalizedHeaders[header] = headerValue
+		} else if (Array.isArray(headerValue)) {
+			if (headerValue.length === 1) {
+				normalizedHeaders[header] = headerValue[0]
+			} else {
+				normalizedHeaders[header] = headerValue
+			}
+		} else {
+			throw new Error(`detected an abnormal header value ${header} - ${headerValue}`)
+		}
+	})
+	
+	return normalizedHeaders
+}
+
+export default fp(async function (f, opts: BridgeOpts) {
+	const logger = f.log.child({ name: 'bridge'})
 	// decorate
 	f.decorate('bridge', Object.create(null));
 
@@ -40,7 +63,6 @@ export default fp(async function (f, opts: BridgeOpts) {
 			return rep;
 		}
 		
-		req.log.debug('bridge prep')
 		const bridger = bridge.get(keyCache.get(bridgeId) as any)
 		if (!bridger) {
 			rep.code(404)
@@ -48,30 +70,37 @@ export default fp(async function (f, opts: BridgeOpts) {
 			return rep;
 		}
 
-		const data = bridger.data
-		if (data?.headers || data?.body) {
-			Object.assign(req.headers, data?.headers)
-			req.body = data?.body
-		} else {
-			req.body = bridger.data
-		}
-
-		req.log.info({ headers: req.headers, body: req.body }, 'bridge information')
+		req.body = bridger.data?.body
+		req.headers = { ...normalizeHeaders(req.headers), ...normalizeHeaders(bridger.data?.headers)}
+		req['bridged'] = keyCache.get(bridgeId)
+		
+		logger.info({ reqId: req.id, headers: req.headers, body: req.body }, 'bridge information')
 	})
 
 	// register onSend to skip sending back to client, only sending out code 200
 	f.addHook('preSerialization', async function preSerialization (req, rep, payload) {
-		const bridgeId = req.headers[BRIDGE_ID] as string
-		if (keyCache.has(bridgeId)) {
-			req.log.info({payload}, 'bridge steal sending')
-			const key = keyCache.get(bridgeId) as {id: string}
-
+		if (req['bridged']) {
+			const key = req['bridged'] as {id: string}
+			
+			if (payload?.['headers']) {
+				payload['headers'] = normalizeHeaders(payload['headers'])
+			}
+			
+			req.log.debug({ payload }, 'bridge steal sending')
 			bridge.set(key, payload);
 
 			// replace payload with null
 			return null
 		}
+		
 		return payload
+	})
+
+	f.addHook('onError', async function onError(req, rep, error) {
+		if (req['bridged']) {
+			req.log.error({ error }, 'caught an unexpected exception on a bridge route')
+			bridge.set(req['bridged'], { code: 500, errors: error });
+		}
 	})
 
 	f.addHook('onReady', async function () {
@@ -81,23 +110,30 @@ export default fp(async function (f, opts: BridgeOpts) {
 			const nextId = `bridge-${++id}`;
 
 			const op = { id: nextId };
+
+			logger.debug({ input }, "setting to bridge")
 			bridge.set(op, input)
 			keyCache.set(nextId, op)
-
-			const result = await request(`${address}/${path}`, {
+			
+			return await request(`${address}/${path}`, {
 					headers: {
-						[BRIDGE_ID]: nextId
+						[BRIDGE_ID]: nextId,
+						reqId: input?.data?.headers?.['reqId'],
+						'trace_id': input?.data?.headers?.['trace-id']
 					}
 				})
 				.then(() => {
+					logger.debug({ output: bridge.get(op) }, "setting result to bridge")
+					return bridge.get(op)
+				})
+				.catch((error) => {
+					logger.error({ error }, "caught an unhandled bridge exception")
 					return bridge.get(op)
 				})
 				.finally(async () => {
 					bridge.delete(op)
 					keyCache.delete(nextId)
 				})
-
-			return result;
 		}
 	})
 }, {

@@ -34,13 +34,13 @@ describe("nats plugin function", async () => {
 	const nc = await connect();
 
 	test("nats function", async () => {
-		const response = await nc.request('echo', encode({ msg: 'hello' }))
+		const response = await nc.request('echo', encode({ body: { msg: 'hello' } }))
 		const decoded = JSONCodec().decode(response.data)
 
 		expect(decoded).toStrictEqual({
 			body: { msg: 'hello'},
 			headers: expect.anything(),
-			code: 'OK'
+			code: 200
 		})
 	})
 
@@ -59,7 +59,7 @@ describe("nats plugin function", async () => {
 			headers: expect.objectContaining({
 				'x': 'test',
 			}),
-			code: 'OK',
+			code: 200,
 			body: {
 				msg: "hello"
 			}

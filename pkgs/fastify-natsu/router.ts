@@ -5,7 +5,7 @@ import { NatsHandleResult } from "@silenteer/natsu";
 import { A } from "ts-toolbelt";
 
 import { createRoute, Route, RouteDef } from "./route";
-import { nats } from "./plugins/nats"
+import { nats, type NatsOptions } from "./plugins/nats"
 import bridge from "./plugins/bridge"
 import timeout, { type TimeoutConfig } from "./plugins/timeout"
 import { provider, Provider } from "./plugins/provider";
@@ -39,7 +39,11 @@ type PortOpts = {
 	portServerOpts?: PortServerOpts
 }
 
-export type RouterOpts = FastifyOpts & PortOpts & TimeoutConfig
+type NatsOpts = {
+	nats?: NatsOptions
+}
+
+export type RouterOpts = FastifyOpts & PortOpts & TimeoutConfig & NatsOpts
 
 type inferRoute<T> = T extends Route<infer path, infer req, infer res, any> ? {
 	subject: path
@@ -105,27 +109,33 @@ export class Router<
 		// Set the fastify to the child context, as such, all of routes are going to be under this context
 		this.fastify = routerFastifyRef.routerFastify;
 		
-		this.register = (plugin, opts) => {
+		this.register = (plugin: any, opts: any) => {
 			this.fastify.register(plugin, opts)
 			return this;
 		}
+		
 		// this.register(allHooks)
 		this.register(bridge);
 		this.register(provider);
 		
-		this.register(nats)
+		this.register(nats, routerOpts?.nats)
 
-		if (this.opts.portEnabled) {
-			this.root.register(portServer, parsedConfig)
-		}
 	}
 
 	use<
 		path extends string,
 		value extends any,
 		options extends Record<string, any>
-	>(def: Provider<path, value, options>, opts: options): Router<routes, context & Record<path, value>> {
-		this.register(def, opts as any);
+	>(
+		def: Provider<path, value, options>, 
+		opts: options,
+		enable: boolean | (() => boolean) = true
+	): Router<routes, context & Record<path, value>> {
+		if (enable) {
+			this.register(def, opts as any);
+		} else {
+			this.root.log.info(def, "ignoring registration")
+		}
 		return this as any;
 	}
 

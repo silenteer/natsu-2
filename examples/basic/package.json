@@ -2,7 +2,7 @@
   "name": "basic",
   "packageManager": "yarn@3.2.3",
   "scripts": {
-    "example:server": "tsx watch server.ts | yarn pino-pretty -lcfS -i hostname"
+    "example:server": "tsx watch server.ts | yarn pino-pretty -lcfS -i hostname,pid"
   },
   "dependencies": {
     "@silenteer/natsu": "^1.0.25",

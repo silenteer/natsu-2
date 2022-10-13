@@ -42,7 +42,6 @@ function mockLegacyRoute(subject: string, options?: {
 
 function makeProvider(name: string, value: any) {
 	return createProvider({
-		name,
 		path: name,
 		value: async () => value
 	})
@@ -82,7 +81,7 @@ describe("router", async () => {
 			},
 			portEnabled: true
 		})
-			.use(provider)
+			.use(provider, {})
 			.route(echoRoute)
 			.route(legacyRoute)
 		.start()
@@ -95,11 +94,11 @@ describe("router", async () => {
 
 		expect(JSON.parse((await call('echo')).data.toString())).toStrictEqual({
 			body: { msg: 'echo' },
-			code: 'OK'
+			code: 200
 		});
 		expect(JSON.parse((await call('hello')).data.toString())).toStrictEqual({ 
 			body: { msg: 'world'},
-			code: 'OK' 
+			code: 200 
 		});
 	})
 
@@ -166,7 +165,7 @@ describe("router", async () => {
 
 		const result = await call('echo')
 		expect(JSON.parse(result.data)).toStrictEqual({
-			code: 'OK',
+			code: 200,
 			headers: { 'x-header': 'hello' }
 		})
 	})
@@ -205,7 +204,7 @@ describe("router", async () => {
 
 	test("legacy validation should work", async () => {
 
-		mockValidation.mockResolvedValue({
+		mockValidation.mockResolvedValueOnce({
 			code: 400,
 			errors: 'invalid email address'
 		})
@@ -218,13 +217,19 @@ describe("router", async () => {
 	})
 
 	test("authorization should work", async () => {
-		mockAuthorization.mockResolvedValue({
+		mockAuthorization.mockResolvedValueOnce({
 			code: 403,
-			errors: 'invalid email address'
+			errors: 'unauthorized access'
 		})
 		
-		expect((await call('hello')).statusCode).toBe(403)
-		expect((await call('hello')).data.toString()).toBe('invalid email address')
+		const result = await call('hello')
+		const data = JSON.parse(result.data)
+
+		expect(result.statusCode).toBe(403)
+		expect(data).toStrictEqual(expect.objectContaining({
+			code: 400,
+			errors: 'unauthorized access'
+		}))
 
 		mockAuthorization.mockResolvedValue({
 			code: 'OK'

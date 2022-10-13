@@ -165,18 +165,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@fastify/nextjs@npm:^9.1.1":
-  version: 9.1.1
-  resolution: "@fastify/nextjs@npm:9.1.1"
-  dependencies:
-    "@fastify/under-pressure": ^8.0.0
-    fastify-plugin: ^4.0.0
-  peerDependencies:
-    next: 12.x.x
-  checksum: dd9152a456850623e2a2f7d82972c277af84bb8d78e8127e64bf98cbe74f7f329fbf08731a26a9866986fceb0b404df1ebcb7d7e6b396c4d64dd635d17395ef3
-  languageName: node
-  linkType: hard
-
 "@fastify/routes@npm:^5.0.0":
   version: 5.0.0
   resolution: "@fastify/routes@npm:5.0.0"
@@ -198,16 +186,6 @@ __metadata:
     type-is: ^1.6.18
     vary: ^1.1.2
   checksum: 25719212b91d9b96a99e14f22bd1ac534e29d1cae0752fbdb41152cce5b06c34848bf033914c83727b61bb312a425262dbe6f891f1d02a3263fd20de1f3637fd
-  languageName: node
-  linkType: hard
-
-"@fastify/under-pressure@npm:^8.0.0":
-  version: 8.1.0
-  resolution: "@fastify/under-pressure@npm:8.1.0"
-  dependencies:
-    "@fastify/error": ^3.0.0
-    fastify-plugin: ^4.0.0
-  checksum: 388ea1ddd00a5a329def2115a1f66b570ea64cacacc3345ed3d2ee264009b843f49bab2690d86355023381987f0fd204a96e42c921dbf900bd70fbd50fadf757
   languageName: node
   linkType: hard
 
@@ -1227,7 +1205,6 @@ __metadata:
   resolution: "@silenteer/natsu-2@workspace:pkgs/fastify-natsu"
   dependencies:
     "@fastify/funky": ^2.0.0
-    "@fastify/nextjs": ^9.1.1
     "@fastify/routes": ^5.0.0
     "@fastify/sensible": ^5.1.1
     "@opentelemetry/api": ^1.2.0
@@ -1245,7 +1222,6 @@ __metadata:
     fastify: ^4.6.0
     fastify-plugin: ^4.2.1
     nats: ^2.7.1
-    next: ^12.3.1
     pino-pretty: ^9.1.0
     ts-toolbelt: ^9.6.0
     tsd: ^0.24.1
