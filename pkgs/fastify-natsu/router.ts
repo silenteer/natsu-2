@@ -9,7 +9,6 @@ import { nats, type NatsOptions } from "./plugins/nats"
 import bridge from "./plugins/bridge"
 import timeout, { type TimeoutConfig } from "./plugins/timeout"
 import { provider, Provider } from "./plugins/provider";
-import fp from "fastify-plugin";
 
 import zod from "zod"
 
@@ -55,15 +54,6 @@ type RouterInjector = {
 	routerFastify: FastifyInstance
 }
 
-const router = fp(function (fastify: FastifyInstance, opts: RouterInjector, done: Function) {
-	// Follow fastify context structure, the route must be registered to this fastify instance to inherit those plugins
-	// including all of those decorateRequest(s)
-	opts.routerFastify = fastify
-	done()
-}, {
-	name: 'fastify-router'
-})
-
 const routerConfigSchema = zod.object({
 	portEnabled: zod.boolean().optional().default(false),
 	listenOpts: zod.any()
@@ -83,10 +73,8 @@ export class Router<
 	routes extends Route<any, any, any, any> = never,
 	context extends Record<string, any> = {}
 > {
-	fastify: FastifyInstance
 	private opts: RouterOpts
-	private root: FastifyInstance
-	
+	fastify: FastifyInstance
 	register: FastifyRegister<typeof this>
 
 	constructor(routerOpts?: RouterOpts) {
@@ -95,30 +83,28 @@ export class Router<
 			.parse(routerOpts)
 
 		this.opts = parsedConfig
-		this.root = routerOpts?.fastify
+		this.fastify = routerOpts?.fastify
 			? routerOpts.fastify
 			: fastify(routerOpts?.serverOpts);
 
-		this.root.log.info({routerOpts: this.opts}, "Starting server with")
+		this.fastify.log.info({routerOpts: this.opts}, "Starting server with")
 
-		const routerFastifyRef = { routerFastify: this.root }
-		this.root.register(router, routerFastifyRef)
-		this.root.register(sensible)
-		this.root.register(timeout, { timeout: this.opts.timeout })
-		
-		// Set the fastify to the child context, as such, all of routes are going to be under this context
-		this.fastify = routerFastifyRef.routerFastify;
+		this.fastify.register(sensible)
+		this.fastify.register(timeout, { timeout: this.opts.timeout })
 		
 		this.register = (plugin: any, opts: any) => {
 			this.fastify.register(plugin, opts)
 			return this;
 		}
 		
-		// this.register(allHooks)
 		this.register(bridge);
 		this.register(provider);
 		
 		this.register(nats, routerOpts?.nats)
+
+		if (routerOpts?.portEnabled) {
+			this.register(portServer, routerOpts?.portServerOpts)
+		}
 
 	}
 
@@ -134,7 +120,7 @@ export class Router<
 		if (enable) {
 			this.register(def, opts as any);
 		} else {
-			this.root.log.info(def, "ignoring registration")
+			this.fastify.log.info(def, "ignoring registration")
 		}
 		return this as any;
 	}
@@ -191,13 +177,13 @@ export class Router<
 	}
 
 	async start() {
-		this.root.log.info("starting");
-		await this.root.listen({ ...this?.opts?.listenOpts })
+		this.fastify.log.info("starting");
+		await this.fastify.listen({ ...this?.opts?.listenOpts })
 			.then(started => {
-				this.root.log.info("server started successfully");
+				this.fastify.log.info("server started successfully");
 			})
 			.catch(error => {
-				this.root.log.error(error, 'caught startup exception, exitting')
+				this.fastify.log.error(error, 'caught startup exception, exitting')
 				process.exit(1)
 			})
 		

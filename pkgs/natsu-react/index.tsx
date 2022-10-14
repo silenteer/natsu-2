@@ -1,6 +1,6 @@
 import React, { useContext, useEffect } from 'react';
+import { connect, connectWS } from '@silenteer/natsu-port-2';
 
-import type { Client, NatsuSocket } from '@silenteer/natsu-port-2';
 import type {
   NatsChannel,
   NatsPortWSResponse,
@@ -9,64 +9,60 @@ import type {
 
 import { useQuery, QueryClient, QueryClientProvider, UseQueryOptions, useMutation, UseMutationOptions, QueryClientConfig } from "@tanstack/react-query"
 
-export type NatsuOptions<
-  A extends NatsService<string, unknown, unknown>,
-  B extends NatsChannel<string, unknown, unknown>
-> = {
-  natsuClient: Client<A>;
-  makeNatsuSocketClient?: () => NatsuSocket<B>;
+export type ClientOptions = {
+  host: URL
+  wsHost?: URL
   queryClient?: QueryClient,
   queryClientConfig?: QueryClientConfig 
-};
+}
 
-const createNatsuProvider = <
+function makeSocketClient(wsHost?: URL) {
+  return wsHost 
+    ? connectWS({ serverURL: wsHost }) 
+    : undefined
+}
+
+function makeNatsuClient(url?: URL) {
+  return url
+    ? connect({ serverURL: url })
+    : undefined
+}
+
+function createClient<
   A extends NatsService<string, unknown, unknown>,
   B extends NatsChannel<string, unknown, unknown>
->({
-  natsuClient,
-  makeNatsuSocketClient,
-  queryClient,
-  queryClientConfig
-}: NatsuOptions<A, B>) => {
-  const natsuSocket =
-    typeof window !== 'undefined' ? makeNatsuSocketClient?.() : undefined;
+>(clientOpts: ClientOptions) {
+  console.log("Creating client")
+  const queryClient = clientOpts?.queryClient || new QueryClient(clientOpts?.queryClientConfig)
 
-  const context = React.createContext({
-    natsuClient,
-    natsuSocket,
-  });
+  const natsu = typeof window !== 'undefined' ? makeNatsuClient(clientOpts.host) : undefined;
+  const socket = typeof window !== 'undefined' ? makeSocketClient(clientOpts.wsHost) : undefined;
 
-  const QueryClientProviderWrapper = ({ children }) => {
-    return queryClient
-      ? <>{children}</>
-      : <QueryClientProvider client={new QueryClient(queryClientConfig)}>
-        {children}
-      </QueryClientProvider>
-  }
-
-  const NatsuProvider = (props: React.PropsWithChildren<{}>) => (
-    <QueryClientProviderWrapper>
+  const context = React.createContext({ natsu, socket });
+  console.log("Context", { natsu, socket })
+  const Provider = (props: React.PropsWithChildren<{}>) => (
+    <QueryClientProvider client={queryClient}>
       <context.Provider
         value={{
-          natsuClient,
-          natsuSocket,
+          natsu,
+          socket,
         }}
       >
         {props.children}
       </context.Provider>
-    </QueryClientProviderWrapper>
+    </QueryClientProvider>
   );
 
-  const useNatsuClient = () => {
-    const { natsuClient } = useContext(context);
-    return natsuClient;
+  function useNatsuClient() {
+    console.log("Retrieving natsu")
+    return useContext(context)?.natsu;
   };
-
-  const useNatsuSocket = () => {
-    const { natsuSocket } = useContext(context);
-    return natsuSocket;
+  
+  function useNatsuSocket() {
+    console.log("Retrieving socket")
+    return useContext(context)?.socket;
   };
-
+  
   function useSubscribe<Subject extends B['subject']>(
     address: Subject,
     handler: (
@@ -77,27 +73,33 @@ const createNatsuProvider = <
     ) => Promise<void>
   ) {
     const natsuSocket = useNatsuSocket();
-
+  
     useEffect(() => {
       const subscriber = natsuSocket?.subscribe(address, handler);
-
+  
       return () => {
         subscriber.then(unsub => unsub.unsubscribe())
       };
     }, [address]);
   }
-
+  
   const _useQuery = <Subject extends A['subject']>(
     address: Subject,
     data?: Extract<A, { subject: Subject }>['request'],
     queryOpts?: UseQueryOptions
   ) => {
+    console.log("Forwarding to useQuery", {address, data})
     const natsuClient = useNatsuClient();
-    const queryFn = async () => natsuClient(address, data)
-
+    const queryFn = async () => {
+      console.log("executing query fn", { natsuClient })
+      const result = await natsuClient?.(address, data)
+      console.log(result)
+      return result
+    }
+  
     return useQuery([address, data], queryFn, queryOpts)
   };
-
+  
   const _useMutation = <Subject extends A['subject']>(
     address: Subject,
     data?: Extract<A, { subject: Subject }>['request'],
@@ -106,17 +108,21 @@ const createNatsuProvider = <
   ) => {
     const natsuClient = useNatsuClient();
     const queryFn = async () => natsuClient(address, data)
-
+  
     return useMutation([address, data, ...dependencies], queryFn, mutationOpts)
   };
 
   return {
-    NatsuProvider,
+    Provider,
     useNatsuClient,
-    useQuery: _useQuery,
-    useMutation: _useMutation,
+    useNatsuSocket,
     useSubscribe,
-  };
-};
+    useQuery: _useQuery,
+    useMutation: _useMutation
+  }
+}
 
-export { createNatsuProvider };
+
+
+export default createClient;
+export { createClient }

@@ -1,24 +1,15 @@
-
-import { connect, connectWS } from '@silenteer/natsu-port-2';
-import { createNatsuProvider } from '@silenteer/natsu-react-2';
-
+import { createClient } from '@silenteer/natsu-react-2';
 import type { Routes } from 'basic/server';
 
 const {
   useQuery,
   useMutation,
-  NatsuProvider,
+  Provider,
   useNatsuClient,
   useSubscribe,
-} = createNatsuProvider<Routes, any>({
-  natsuClient: connect({
-    serverURL: new URL('http://localhost:8000/port'),
-  }),
-  makeNatsuSocketClient() {
-    return connectWS({
-      serverURL: new URL('ws://localhost:8000/port')
-    })
-  },
+} = createClient<Routes, any>({
+  host: new URL('http://localhost:8000/port'),
+  wsHost: new URL('ws://localhost:8000/port'),
   queryClientConfig: {
     defaultOptions: {
       queries: {
@@ -31,7 +22,7 @@ const {
 export {
   useQuery,
   useMutation,
-  NatsuProvider,
+  Provider,
   useNatsuClient,
   useSubscribe
 };

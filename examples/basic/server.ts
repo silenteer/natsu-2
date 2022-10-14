@@ -20,7 +20,7 @@ const server = new Router({
   portEnabled: true,
   timeout: 7000
 })
-.use(natsProvider)
+.use(natsProvider, {})
 .route(plus)
 .route(minus)
 .route(echo)

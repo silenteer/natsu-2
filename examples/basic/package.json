@@ -2,12 +2,14 @@
   "name": "basic",
   "packageManager": "yarn@3.2.3",
   "scripts": {
-    "example:server": "tsx watch server.ts | yarn pino-pretty -lcfS -i hostname,pid"
+    "example:server": "node -r @swc-node/register server.ts | yarn pino-pretty -lcfS -i hostname,pid"
   },
   "dependencies": {
     "@silenteer/natsu": "^1.0.25",
     "@silenteer/natsu-2": "workspace: *",
     "@silenteer/natsu-type": "^0.0.12",
+    "@swc-node/register": "^1.5.4",
+    "@swc/core": "^1.3.7",
     "fastify": "^4.6.0",
     "pino-pretty": "^9.1.0",
     "tsx": "^3.9.0",
