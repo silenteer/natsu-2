@@ -1,9 +1,7 @@
 {
-	"git-graph.tabIconColourTheme": "colour",
 	"editor.stablePeek": true,
 	"editor.tabSize": 2,
 	"editor.insertSpaces": false,
-	"workbench.iconTheme": "city-lights-icons-vsc",
 	"workbench.tree.indent": 8,
 	"explorer.compactFolders": false,
 	"vitest.commandLine": "",

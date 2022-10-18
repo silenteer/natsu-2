@@ -1,8 +1,6 @@
 import { createRoute } from '@silenteer/natsu-2'
 import z from 'zod'
 
-import type { Context } from '../server'
-
 export default createRoute({
   subject: 'math.minus',
   input: z.object({

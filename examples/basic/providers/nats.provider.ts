@@ -1,8 +1,26 @@
-import { createProvider } from "@silenteer/natsu-2";
+import { createProvider, createRoute } from "@silenteer/natsu-2";
 
-export default createProvider({
+const provider = createProvider({
 	path: 'nats',
-	async value() {
+	config(z) {
+		return z.object({
+			test: z.string()
+		})
+	},
+	
+	async value(config) {
 		return 'string'
-	}
+	},
+
+	meta(z) {
+		return z.object({
+			other: z.string()
+		})
+	},
+
+	async requestValue(req, rep, config) {
+		return 'hello'
+	},
 })
+
+export default provider

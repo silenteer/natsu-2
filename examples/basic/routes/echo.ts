@@ -1,31 +1,14 @@
-import { createRoute } from '@silenteer/natsu-2'
-import z from 'zod'
+import { RouteBuilder } from "@silenteer/natsu-2";
 
-type RedisProvider = {
-  redis: string
-}
+import configProvider from "../providers/config.provider";
 
-type NatsProvider = {
-  nats: string
-}
-
-type Context = RedisProvider & NatsProvider
-
-export default createRoute({
-  subject: 'echo',
-  input: z.object({
-		input: z.string()
-	}),
-  output: z.object({
-		output: z.string()
-	}),
-  async handle (data, ctx) {
-    if (data.body == null) throw new Error('invalid state')
+export default RouteBuilder
+  .new("api.config")
+  .depends(configProvider)
+  .handle(async function(data, injection) {
     return {
       code: 'OK',
-      body: {
-				output: data.body.input
-			}
+      body: injection.config.config
     }
-  }
-})
+  })
+  .build()

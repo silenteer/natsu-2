@@ -32,14 +32,12 @@ function createClient<
   A extends NatsService<string, unknown, unknown>,
   B extends NatsChannel<string, unknown, unknown>
 >(clientOpts: ClientOptions) {
-  console.log("Creating client")
   const queryClient = clientOpts?.queryClient || new QueryClient(clientOpts?.queryClientConfig)
 
   const natsu = typeof window !== 'undefined' ? makeNatsuClient(clientOpts.host) : undefined;
   const socket = typeof window !== 'undefined' ? makeSocketClient(clientOpts.wsHost) : undefined;
 
   const context = React.createContext({ natsu, socket });
-  console.log("Context", { natsu, socket })
   const Provider = (props: React.PropsWithChildren<{}>) => (
     <QueryClientProvider client={queryClient}>
       <context.Provider
@@ -54,12 +52,10 @@ function createClient<
   );
 
   function useNatsuClient() {
-    console.log("Retrieving natsu")
     return useContext(context)?.natsu;
   };
   
   function useNatsuSocket() {
-    console.log("Retrieving socket")
     return useContext(context)?.socket;
   };
   
@@ -88,12 +84,9 @@ function createClient<
     data?: Extract<A, { subject: Subject }>['request'],
     queryOpts?: UseQueryOptions
   ) => {
-    console.log("Forwarding to useQuery", {address, data})
     const natsuClient = useNatsuClient();
     const queryFn = async () => {
-      console.log("executing query fn", { natsuClient })
       const result = await natsuClient?.(address, data)
-      console.log(result)
       return result
     }
   

@@ -50,10 +50,6 @@ type inferRoute<T> = T extends Route<infer path, infer req, infer res, any> ? {
 	response: res
 } : any;
 
-type RouterInjector = {
-	routerFastify: FastifyInstance
-}
-
 const routerConfigSchema = zod.object({
 	portEnabled: zod.boolean().optional().default(false),
 	listenOpts: zod.any()
@@ -76,6 +72,10 @@ export class Router<
 	private opts: RouterOpts
 	fastify: FastifyInstance
 	register: FastifyRegister<typeof this>
+
+	static new(routerOpts?: RouterOpts) {
+		return new Router<never, {}>(routerOpts)
+	}
 
 	constructor(routerOpts?: RouterOpts) {
 		const parsedConfig = routerConfigSchema
@@ -105,7 +105,6 @@ export class Router<
 		if (routerOpts?.portEnabled) {
 			this.register(portServer, routerOpts?.portServerOpts)
 		}
-
 	}
 
 	use<
@@ -113,12 +112,12 @@ export class Router<
 		value extends any,
 		options extends Record<string, any>
 	>(
-		def: Provider<path, value, options>, 
+		def: Provider<path, value, options, any, any>, 
 		opts: options,
 		enable: boolean | (() => boolean) = true
 	): Router<routes, context & Record<path, value>> {
 		if (enable) {
-			this.register(def, opts as any);
+			this.register(def[0], opts as any);
 		} else {
 			this.fastify.log.info(def, "ignoring registration")
 		}
@@ -129,21 +128,21 @@ export class Router<
 		path extends string,
 		req, res,
 		routeCtx extends Record<string, unknown>
-	>(def: RouteDef<path, req, res, checkImplements<context, routeCtx>>)
+	>(def: RouteDef<path, req, res, routeCtx>)
 		: Router<routes | Route<path, req, res, routeCtx>, context>;
 
 	route<
 		path extends string,
 		req, res,
 		routeCtx extends Record<string, any>
-	>(def: Route<path, req, res, checkImplements<context, routeCtx>>): Router<routes | Route<path, req, res, routeCtx>, context>
+	>(def: Route<path, req, res, routeCtx>): Router<routes | Route<path, req, res, routeCtx>, context>
 
 	route<
 		path extends string,
 		req, res,
 		routeCtx extends Record<string, any>
 	>(def:
-		Route<path, req, res, checkImplements<context, routeCtx>> |
+		Route<path, req, res, routeCtx> |
 		RouteDef<path, req, res, checkImplements<context, routeCtx>>
 	): Router<routes | Route<path, req, res, routeCtx>, context> {
 		if (typeof def === 'function') {

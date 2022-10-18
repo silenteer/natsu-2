@@ -12,17 +12,23 @@ The whole package is built around fastify-as-a-router, instead of rolling your o
 - maybe embeding nextjs into the package so the full-stack application can be done much easier
 - Fluent API to register routes. Type check toward compatability between route and server (aka server cannot provide what the route need)
 
+### Concepts
+
+- Provider, is the reusable module, for example, PostgreSQL service will be used across services
+- Configuration, is the details for the module to functional, for example, Postgresql driver will need url and authentication to connect
+- Meta, is the configuration against the Provider, for example `minio` requires minio configuration to connect to minio server. Meta is `bucket` configuration so it can be reusable
+
+
 ### TODO
 - [x] namespace concept implementation
 - [x] client implemenation
 - [x] legacy shape so natsu unit in v1 should still work without any migration
 - [x] example with client-side included
 - [x] better logging
-- [ ] integrate with opentelemetry for tracing
+- [x] integrate with opentelemetry for tracing
 - [ ] pub/sub SPI, API
 - [ ] test-tools so the implementation can be tested easily
 - [ ] conclude configuration for app
-- [ ] dedicated protocol testing (port, rpc, nats, via websocket)
 - [ ] add more providers (prisma, redis, etc)
 - [ ] dev mode and production mode
 - [ ] auto test in github actions

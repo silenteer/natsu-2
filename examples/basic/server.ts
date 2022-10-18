@@ -20,11 +20,11 @@ const server = new Router({
   portEnabled: true,
   timeout: 7000
 })
-.use(natsProvider, {})
-.route(plus)
-.route(minus)
-.route(echo)
-.route(ping)
+  .use(natsProvider, { test: 'something' })
+  .route(plus)
+  .route(minus)
+  .route(echo)
+  .route(ping)
 
 export type Routes = typeof server.Routes
 
